@@ -2,22 +2,38 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { Container, Box, TextField, Button, Typography, Link } from '@mui/material';
+import { Container, Box, TextField, Button, Typography, Link, Alert } from '@mui/material';
+import { apiLogin } from '../api/apiService'; // 导入真实 API
+import { jwtDecode } from 'jwt-decode'; // 导入解码器
 
 const LoginPage = () => {
   const { login } = useAuthStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState(''); // 用于显示登录失败
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // 在真实应用中，这里会调用API进行验证
-    console.log('Attempting to log in with:', { email, password });
-    // 调用Zustand store中的login action
-    login();
-    // 登录成功后跳转回首页
-    navigate('/');
+    setError(''); // 重置错误
+    try {
+      // 1. 调用真实 API
+      const response = await apiLogin(email, password);
+      const { token } = response.data;
+      
+      // 2. 解码 Token 以获取用户信息 (sub = userId, email)
+      const decoded = jwtDecode(token);
+      const userData = { id: decoded.sub, email: decoded.email };
+
+      // 3. 使用真实数据更新 Zustand Store
+      login(userData, token);
+
+      // 4. 导航到首页
+      navigate('/');
+    } catch (err) {
+      console.error('Login failed:', err);
+      setError(err.response?.data?.error || '登录失败，请检查您的邮箱或密码。');
+    }
   };
 
   return (
@@ -33,7 +49,9 @@ const LoginPage = () => {
         <Typography component="h1" variant="h5">
           Sign In
         </Typography>
+        {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error}</Alert>}
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+          {/* ... (TextFields 保持不变) ... */}
           <TextField
             margin="normal"
             required

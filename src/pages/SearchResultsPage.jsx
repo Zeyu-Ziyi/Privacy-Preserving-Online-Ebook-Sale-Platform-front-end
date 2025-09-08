@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { fetchBooks } from '../api/booksApi';
+import { getAllBooks } from '../api/booksApi';
 import { Container, Typography, Box, CircularProgress, Alert } from '@mui/material';
 import SearchResultItem from '../components/SearchResultItem';
 import SearchBar from '../components/SearchBar';
@@ -32,7 +32,7 @@ const SearchResultsPage = () => {
   } = useInfiniteQuery({
     queryKey: ['bookSearch', { query, type }],
     // queryFn现在接收一个包含pageParam的对象
-    queryFn: ({ pageParam = 1 }) => fetchBooks({ query, type, pageParam }),
+    queryFn: ({ pageParam = 1 }) => getAllBooks({ query, type, pageParam }),
     // getNextPageParam告诉React Query如何获取下一页的参数
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 1,

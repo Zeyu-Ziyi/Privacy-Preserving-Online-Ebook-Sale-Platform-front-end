@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchStore } from '../store/useSearchStore';
-import { fetchBooks } from '../api/booksApi';
+import { getAllBooks } from '../api/booksApi';
 import SearchBar from '../components/SearchBar';
 import BookCard from '../components/BookCard';
 import { Box, CircularProgress, Typography, Alert } from '@mui/material';
@@ -21,7 +21,7 @@ const HomePage = () => {
     fetchNextPage,
   } = useInfiniteQuery({
     queryKey: ['books', query],
-    queryFn: ({ pageParam = 1 }) => fetchBooks({ query, type: 'title', pageParam }),
+    queryFn: ({ pageParam = 1 }) => getAllBooks({ query, type: 'title', pageParam }),
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 1,
   });

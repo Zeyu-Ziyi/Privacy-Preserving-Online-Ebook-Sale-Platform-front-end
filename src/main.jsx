@@ -1,4 +1,13 @@
 // src/main.jsx
+// 在所有其他导入之前设置这些
+import { Buffer } from 'buffer';
+import process from 'process';
+
+// 立即设置全局变量
+globalThis.Buffer = Buffer;
+globalThis.process = process;
+window.Buffer = Buffer;
+window.process = process;
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'

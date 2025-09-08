@@ -5,8 +5,10 @@ import MainLayout from './layouts/MainLayout';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
-import BookPage from './pages/BookPage'; // 引入BookPage
-import SearchResultsPage from './pages/SearchResultsPage'; // 引入新页面
+import BookPage from './pages/BookPage';
+import SearchResultsPage from './pages/SearchResultsPage';
+// --- 导入新页面 ---
+import VerifyDownloadPage from './pages/VerifyDownloadPage'; // (您必须创建此文件)
 
 function App() {
   return (
@@ -16,8 +18,9 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/book/:id" element={<BookPage />} />
-        {/* 新增: 搜索结果页面的路由 */}
         <Route path="/search" element={<SearchResultsPage />} />
+        {/* --- 添加新路由 --- */}
+        <Route path="/verify-download/:purchaseId" element={<VerifyDownloadPage />} />
       </Routes>
     </MainLayout>
   );

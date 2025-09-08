@@ -1,93 +1,137 @@
-// src/pages/BookPage.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchBookById } from '../api/booksApi';
-import { useAuthStore } from '../store/useAuthStore';
-import { Container, Grid, Box, Typography, Button, CircularProgress, Alert, Divider } from '@mui/material';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import DownloadIcon from '@mui/icons-material/Download';
+import { getBookById, getAllBooks } from '../api/booksApi'; // 假设您有 getAllBooks
+import { createOrder } from '../api/apiService'; //
+import { useAuthStore } from '../store/useAuthStore'; //
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 
+// 导入我们的 ZKP 辅助函数
+import { getPoseidon, generateNonce, poseidonHash, buildMerkleTree } from '../lib/zkpUtils';
+
+// Stripe 公钥
+const stripePromise = loadStripe('pk_test_51Q6XWQKD7xEKEswAieTpHB683siSWLdEycgHyZgKqVqHC7RYHUOmf39w1s0OqwHGOQS36GsytMGrllo1rDbZzRi500UorAz8ZZ'); // 替换为您的 Stripe 公钥
+
+// 内部支付表单组件
+const CheckoutForm = ({ book, commitment, nonce, allBooksData }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const navigate = useNavigate();
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+
+    if (!stripe || !elements) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // 1. 调用您的后端创建订单和 PaymentIntent
+      // 这完全匹配您的 orders.ts
+      const response = await createOrder(commitment, book.price_cents);
+
+      const { orderId, clientSecret } = response.data;
+
+      // 2. 使用 Stripe.js 确认支付
+      const paymentResult = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        },
+      });
+
+      if (paymentResult.error) {
+        setError(`Payment failed: ${paymentResult.error.message}`);
+        setLoading(false);
+      } else {
+        if (paymentResult.paymentIntent.status === 'succeeded') {
+          // 3. 支付成功！这是关键：将私有秘密保存到 localStorage
+          // 以便 VerifyDownloadPage 可以获取它们
+          const secrets = { bookId: book.id, nonce: nonce, price: book.price_cents };
+          localStorage.setItem(`purchaseSecrets_${orderId}`, JSON.stringify(secrets));
+
+          // 4. 导航到 ZKP 验证页面
+          navigate(`/verify/${orderId}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to create order. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <CardElement />
+      <button type="submit" disabled={!stripe || loading}>
+        {loading ? 'Processing...' : `Pay $${(book.price_cents / 100).toFixed(2)}`}
+      </button>
+      {error && <div>{error}</div>}
+    </form>
+  );
+};
+
+
+// 您的主 BookPage 组件
 const BookPage = () => {
-    const { id } = useParams(); // 从URL获取书籍ID
-    const navigate = useNavigate();
-    const { isAuthenticated, purchaseBook } = useAuthStore();
+  const { id } = useParams();
+  const { data: book, isLoading: isLoadingBook } = useQuery(['book', id], () => getBookById(id));
+  
+  // 我们需要获取所有书籍来构建 Merkle 树
+  const { data: allBooksData, isLoading: isLoadingAllBooks } = useQuery(['allBooks'], getAllBooks);
 
-    const { data: book, error, isLoading } = useQuery({
-        queryKey: ['book', id],
-        queryFn: () => fetchBookById(id),
-    });
+  const [showPayment, setShowPayment] = useState(false);
+  const [purchaseData, setPurchaseData] = useState(null);
+  const { token } = useAuthStore();
 
-    if (isLoading) {
-        return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>;
+  const handlePreparePurchase = async () => {
+    if (!token) {
+      alert('Please log in to purchase.');
+      return;
     }
+    if (!allBooksData || !book) return;
 
-    if (error) {
-        return <Alert severity="error" sx={{ m: 4 }}>Error: {error.message}</Alert>;
-    }
+    // 1. 初始化 Poseidon
+    const poseidon = await getPoseidon();
 
-    // const isPurchased = purchasedBooks.includes(book.id); // 暂时注释掉，后续可能会用到
+    // 2. 生成私有秘密
+    const nonce = generateNonce();
 
-    const handleActionClick = () => {
-        if (!isAuthenticated) {
-            navigate('/login');
-        }
-        // 如果已登录，可以在这里处理加入购物车或购买的逻辑
-        // 我们先模拟购买
-        else {
-            purchaseBook(book.id);
-            alert(`Thank you for purchasing ${book.title}!`);
-        }
-    };
+    // 3. 计算承诺 (Commitment)
+    const commitment = poseidonHash([book.id.toString(), nonce]);
 
-    const handleAddToCart = () => {
-        if (!isAuthenticated) {
-            navigate('/login');
-        } else {
-            alert(`${book.title} has been added to your cart.`);
-        }
-    }
+    // 准备好数据，以传递给 CheckoutForm
+    setPurchaseData({ commitment, nonce });
+    setShowPayment(true);
+  };
 
-    return (
-        <Container sx={{ mt: 4 }}>
-            <Grid container spacing={4}>
-                {/* 左侧: 书籍封面 */}
-                <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <img src={book.cover} alt={book.title} style={{ maxWidth: '100%', height: 'auto', maxHeight: '500px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }} />
-                </Grid>
+  if (isLoadingBook || isLoadingAllBooks) return <div>Loading...</div>;
 
-                {/* 右侧: 书籍信息和操作按钮 */}
-                <Grid item xs={12} md={8}>
-                    <Typography variant="h3" component="h1" gutterBottom>
-                        {book.title}
-                    </Typography>
-                    <Typography variant="h5" component="h2" color="text.secondary" gutterBottom>
-                        by {book.author} ({book.year})
-                    </Typography>
-                    <Typography variant="h4" color="primary" sx={{ my: 2, fontWeight: 'bold' }}>
-                        ${book.price.toFixed(2)}
-                    </Typography>
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="body1" paragraph>
-                        {book.description}
-                    </Typography>
-
-                    <Box sx={{ mt: 4 }}>
-              {/* 情况二: 未购买 (无论是否登录，按钮样式相同，但功能不同) */}
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Button variant="contained" size="large" onClick={handleActionClick}>
-                                Buy Now
-                            </Button>
-                            <Button variant="outlined" size="large" startIcon={<ShoppingCartIcon />} onClick={handleAddToCart}>
-                                Add to Cart
-                            </Button>
-                        </Box>
-
-                    </Box>
-                </Grid>
-            </Grid>
-        </Container>
-    );
+  return (
+    <div>
+      <h1>{book.title}</h1>
+      <p>{book.author}</p>
+      <p>{book.description}</p>
+      
+      {!showPayment ? (
+        <button onClick={handlePreparePurchase}>Purchase Now</button>
+      ) : (
+        <Elements stripe={stripePromise}>
+          <CheckoutForm 
+            book={book} 
+            commitment={purchaseData.commitment} 
+            nonce={purchaseData.nonce} 
+            allBooksData={allBooksData} 
+          />
+        </Elements>
+      )}
+    </div>
+  );
 };
 
 export default BookPage;
