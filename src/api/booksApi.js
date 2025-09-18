@@ -1,5 +1,5 @@
 // src/api/booksApi.js
-import { fetchApiBooks, fetchApiBookById } from './apiService';
+import { fetchApiBooks, fetchApiBookById, fetchApiBooksRaw } from './apiService';
 
 // 修改 getBookById 以使用真实的 API 服务
 export const getBookById = async (id) => {
@@ -16,4 +16,8 @@ export const getAllBooks = async ({ pageParam = 1 }) => {
       return { books: [], nextPage: undefined }; // 如果不是第一页，则不返回任何内容
   }
   return fetchApiBooks();
+};
+
+export const getAllBooksRaw = async () => {
+  return fetchApiBooksRaw();
 };

@@ -50,6 +50,17 @@ export const fetchApiBooks = async () => {
    };
 };
 
+export const fetchApiBooksRaw = async () => {
+  const response = await apiClient.get('/books');
+  try {
+    const response = await apiClient.get('/books');
+    return response.data || []; 
+  } catch (error) {
+    console.error("Failed to get raw books for ZKP:", error);
+    return []; 
+  }
+};
+
 // 后端没有 /books/:id 路由。我们必须获取所有书籍并在客户端过滤。
 // (对于大型目录效率不高，但这匹配您提供的后端。)
 export const fetchApiBookById = async (id) => {

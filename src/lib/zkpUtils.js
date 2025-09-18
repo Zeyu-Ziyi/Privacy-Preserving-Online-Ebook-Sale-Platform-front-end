@@ -1,6 +1,19 @@
 import { buildPoseidon } from 'circomlibjs';
-import { FixedMerkleTree } from 'fixed-merkle-tree';
-import { ethers } from 'ethers';
+import { MerkleTree } from 'fixed-merkle-tree'; // <-- 修复了导入名称
+import { randomBytes, hexlify } from 'ethers';
+
+/**
+ * 将 UUID 字符串 (例如 "5f2fc0b7-f335-4331-841d-a341fe9a73ca") 
+ * 转换为电路可以使用的 BigInt 字符串 (十进制)。
+ * @param {string} uuid - The UUID string.
+ * @returns {string} The BigInt as a decimal string.
+ */
+export const uuidToBigIntString = (uuid) => {
+  // 1. 移除所有连字符
+  const hex = uuid.replace(/-/g, '');
+  // 2. 将纯十六进制字符串转换为 BigInt, 然后再转换为 (十进制) 字符串
+  return BigInt('0x' + hex).toString();
+};
 
 // 确保这与您电路中的 TREE_LEVELS 匹配 (例如 8)
 const TREE_LEVELS = 8;
@@ -14,58 +27,48 @@ export const getPoseidon = async () => {
   return poseidon;
 };
 
-// 2. 辅助函数：生成一个安全的随机 nonce
 export const generateNonce = () => {
-  // 生成一个31字节的安全随机数，使其适合 Poseidon 哈希输入
-  return ethers.BigNumber.from(ethers.utils.randomBytes(31)).toString();
+  const bytes = randomBytes(31);
+  const randomHex = hexlify(bytes);
+  return BigInt(randomHex).toString();
 };
 
-// 3. 辅助函数：Poseidon 哈希 (circomlibjs 的 poseidon.F.toString 是必需的)
 export const poseidonHash = (inputs) => {
   const hash = poseidon(inputs);
   return poseidon.F.toString(hash);
 };
 
-// 4. 构建 Merkle 树的函数
 export const buildMerkleTree = async (allBooks) => {
-  const poseidon = await getPoseidon();
-  
-  // 1. 计算所有书籍的叶子节点
+  await getPoseidon(); // 确保 poseidon 已初始化
   const leaves = allBooks.map(book =>
-    poseidonHash([book.id, book.price_cents]) // 必须匹配电路中的 leaf_hasher
+    poseidonHash([uuidToBigIntString(book.id), book.price_cents.toString()]) // 确保价格也是字符串
   );
-
-  // 2. 创建树
-  const tree = new FixedMerkleTree(TREE_LEVELS, leaves, {
+  const tree = new MerkleTree(TREE_LEVELS, leaves, {
     hashFunction: (left, right) => poseidonHash([left, right]),
-    zeroElement: '0' // 使用 0 作为空叶子，如果书籍数量不是 2^LEVELS
+    zeroElement: '0'
   });
-
   return tree;
 };
 
-// 5. 为特定书籍生成 Merkle 证明
+
 export const getMerkleProof = (tree, leafIndex) => {
     if (leafIndex < 0) {
         throw new Error('Book leaf not found in tree');
     }
-    const proof = tree.path(leafIndex);
-    return proof; // 这将返回一个包含 { root, pathElements, pathIndices } 的对象
+    return tree.path(leafIndex);
 };
 
-// 6. 生成 snarkjs.fullProve 所需的完整输入
 export const generateZkpInputs = (book, nonce, merkleProof, merkleRoot, commitment) => {
   return {
-    // --- 私有输入 ---
-    book_id: book.id.toString(),
+    // 私有输入
+    book_id: uuidToBigIntString(book.id),
     nonce: nonce,
-    merkle_proof: merkleProof.pathElements, // 来自 fixed-merkle-tree
-    merkle_path_indices: merkleProof.pathIndices, // 来自 fixed-merkle-tree
-
-    // --- 公开输入 ---
-    merkle_root: merkleRoot,
     price: book.price_cents.toString(),
+    merkle_proof: merkleProof.pathElements,
+    merkle_path_indices: merkleProof.pathIndices,
+    // 公开输入
+    merkle_root: merkleRoot,
     commitment: commitment,
-    // (nullifier 是电路的输出, 不是输入)
   };
 };
+

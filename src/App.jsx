@@ -20,7 +20,7 @@ function App() {
         <Route path="/book/:id" element={<BookPage />} />
         <Route path="/search" element={<SearchResultsPage />} />
         {/* --- 添加新路由 --- */}
-        <Route path="/verify-download/:purchaseId" element={<VerifyDownloadPage />} />
+        <Route path="verify/:purchaseId" element={<VerifyDownloadPage />} />
       </Routes>
     </MainLayout>
   );

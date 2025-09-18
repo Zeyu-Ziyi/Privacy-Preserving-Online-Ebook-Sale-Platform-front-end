@@ -1,20 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getBookById, getAllBooks } from '../api/booksApi'; // 假设您有 getAllBooks
-import { createOrder } from '../api/apiService'; //
-import { useAuthStore } from '../store/useAuthStore'; //
+import { getBookById, getAllBooks } from '../api/booksApi';
+import { createOrder } from '../api/apiService'; // <-- 关键修改：从新的API文件导入
+import { useAuthStore } from '../store/useAuthStore';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 
-// 导入我们的 ZKP 辅助函数
-import { getPoseidon, generateNonce, poseidonHash, buildMerkleTree } from '../lib/zkpUtils';
+// 导入所有需要的 ZKP 辅助函数
+import { 
+  getPoseidon, 
+  generateNonce, 
+  poseidonHash, 
+  uuidToBigIntString
+} from '../lib/zkpUtils';
 
-// Stripe 公钥
-const stripePromise = loadStripe('pk_test_51Q6XWQKD7xEKEswAieTpHB683siSWLdEycgHyZgKqVqHC7RYHUOmf39w1s0OqwHGOQS36GsytMGrllo1rDbZzRi500UorAz8ZZ'); // 替换为您的 Stripe 公钥
+// Stripe 公钥 (请确保这与您 Stripe 账户中的密钥匹配)
+const stripePromise = loadStripe('pk_test_51Q6XWQKD7xEKEswAieTpHB683siSWLdEycgHyZgKqVqHC7RYHUOmf39w1s0OqwHGOQS36GsytMGrllo1rDbZzRi500UorAz8ZZ');
 
 // 内部支付表单组件
-const CheckoutForm = ({ book, commitment, nonce, allBooksData }) => {
+const CheckoutForm = ({ book, commitment, nonce }) => {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -31,8 +36,7 @@ const CheckoutForm = ({ book, commitment, nonce, allBooksData }) => {
     }
 
     try {
-      // 1. 调用您的后端创建订单和 PaymentIntent
-      // 这完全匹配您的 orders.ts
+      // 1. --- 关键修改: 现在使用专用的 createOrder 函数 ---
       const response = await createOrder(commitment, book.price_cents);
 
       const { orderId, clientSecret } = response.data;
@@ -49,8 +53,7 @@ const CheckoutForm = ({ book, commitment, nonce, allBooksData }) => {
         setLoading(false);
       } else {
         if (paymentResult.paymentIntent.status === 'succeeded') {
-          // 3. 支付成功！这是关键：将私有秘密保存到 localStorage
-          // 以便 VerifyDownloadPage 可以获取它们
+          // 3. 支付成功！将私有秘密保存到 localStorage
           const secrets = { bookId: book.id, nonce: nonce, price: book.price_cents };
           localStorage.setItem(`purchaseSecrets_${orderId}`, JSON.stringify(secrets));
 
@@ -67,7 +70,20 @@ const CheckoutForm = ({ book, commitment, nonce, allBooksData }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <CardElement />
+      <label>
+        Card details
+        <CardElement options={{
+          style: {
+            base: {
+              fontSize: '16px',
+              color: '#424770',
+              '::placeholder': { color: '#aab7c4' },
+            },
+            invalid: { color: '#9e2146' },
+          },
+          hidePostalCode: true
+        }} />
+      </label>
       <button type="submit" disabled={!stripe || loading}>
         {loading ? 'Processing...' : `Pay $${(book.price_cents / 100).toFixed(2)}`}
       </button>
@@ -80,10 +96,16 @@ const CheckoutForm = ({ book, commitment, nonce, allBooksData }) => {
 // 您的主 BookPage 组件
 const BookPage = () => {
   const { id } = useParams();
-  const { data: book, isLoading: isLoadingBook } = useQuery(['book', id], () => getBookById(id));
   
-  // 我们需要获取所有书籍来构建 Merkle 树
-  const { data: allBooksData, isLoading: isLoadingAllBooks } = useQuery(['allBooks'], getAllBooks);
+  const { data: book, isLoading: isLoadingBook } = useQuery({ 
+    queryKey: ['book', id], 
+    queryFn: () => getBookById(id) 
+  });
+  
+  const { data: allBooksData, isLoading: isLoadingAllBooks } = useQuery({ 
+    queryKey: ['allBooks'], 
+    queryFn: getAllBooks 
+  });
 
   const [showPayment, setShowPayment] = useState(false);
   const [purchaseData, setPurchaseData] = useState(null);
@@ -97,15 +119,18 @@ const BookPage = () => {
     if (!allBooksData || !book) return;
 
     // 1. 初始化 Poseidon
-    const poseidon = await getPoseidon();
+    await getPoseidon();
 
-    // 2. 生成私有秘密
+    // 2. 生成私有秘密 nonce
     const nonce = generateNonce();
 
-    // 3. 计算承诺 (Commitment)
-    const commitment = poseidonHash([book.id.toString(), nonce]);
+    // 3. --- 关键修改: 计算新的三输入承诺 ---
+    const commitment = poseidonHash([
+      uuidToBigIntString(book.id), 
+      nonce, 
+      book.price_cents.toString()
+    ]);
 
-    // 准备好数据，以传递给 CheckoutForm
     setPurchaseData({ commitment, nonce });
     setShowPayment(true);
   };
@@ -114,21 +139,26 @@ const BookPage = () => {
 
   return (
     <div>
-      <h1>{book.title}</h1>
-      <p>{book.author}</p>
-      <p>{book.description}</p>
-      
-      {!showPayment ? (
-        <button onClick={handlePreparePurchase}>Purchase Now</button>
+      {book ? (
+        <>
+          <h1>{book.title}</h1>
+          <p>{book.author}</p>
+          <p>{book.description}</p>
+          
+          {!showPayment ? (
+            <button onClick={handlePreparePurchase}>Purchase Now</button>
+          ) : (
+            <Elements stripe={stripePromise}>
+              <CheckoutForm 
+                book={book} 
+                commitment={purchaseData.commitment} 
+                nonce={purchaseData.nonce} 
+              />
+            </Elements>
+          )}
+        </>
       ) : (
-        <Elements stripe={stripePromise}>
-          <CheckoutForm 
-            book={book} 
-            commitment={purchaseData.commitment} 
-            nonce={purchaseData.nonce} 
-            allBooksData={allBooksData} 
-          />
-        </Elements>
+        <p>Book not found.</p>
       )}
     </div>
   );
