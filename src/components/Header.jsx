@@ -20,10 +20,6 @@ const Header = () => {
     navigate('/');
   };
 
-  const handleProfile = () => {
-    // 未来可以导航到/profile页面
-    console.log("Navigate to profile page");
-  };
 
   const handleLogout = () => {
     logout();
@@ -47,9 +43,6 @@ const Header = () => {
         {isAuthenticated ? (
           // 已登录视图
           <Box>
-            <Button color="inherit" startIcon={<AccountCircle />} onClick={handleProfile}>
-              Profile
-            </Button>
             <Button color="inherit" onClick={handleLogout}>
               Logout
             </Button>
