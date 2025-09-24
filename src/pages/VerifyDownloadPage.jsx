@@ -12,7 +12,8 @@ import {
   getMerkleProof, 
   generateZkpInputs,
   uuidToBigIntString,
-  poseidonHash
+  poseidonHash,
+  generateNonce
 } from '../lib/zkpUtils';
 
 import {
@@ -65,8 +66,14 @@ const VerifyDownloadPage = () => {
     }
     const secrets = JSON.parse(secretsJSON);
     const leafIndex = allBooks.findIndex(b => b.id === secrets.bookId);
+    if (leafIndex === -1) {
+        setError('购买凭证中的书籍ID无效。');
+        setStatus('失败');
+        return;
+    }
     selectedBookRef.current = allBooks[leafIndex];
 
+    // ✅ **核心修复：将 socket 实例的创建和事件绑定放在 useEffect 内部**
     const socket = new WebSocket(WS_URL + `/ws/api/purchase/${purchaseId}`);
     ws.current = socket;
 
@@ -84,8 +91,17 @@ const VerifyDownloadPage = () => {
             await getPoseidon();
             const tree = await buildMerkleTree(allBooks);
             const proofPath = getMerkleProof(tree, leafIndex);
-            const commitment = poseidonHash([uuidToBigIntString(secrets.bookId), secrets.nonce, secrets.price.toString()]);
-            const inputs = generateZkpInputs(selectedBookRef.current, secrets.nonce, proofPath, tree.root, commitment);
+            
+            const priceCents = selectedBookRef.current.price_cents;
+            const commitment = poseidonHash([uuidToBigIntString(secrets.bookId), secrets.nonce, priceCents.toString()]);
+            
+            const inputs = generateZkpInputs(
+                selectedBookRef.current, 
+                secrets.nonce, 
+                proofPath, 
+                tree.root.toString(),
+                commitment
+            );
             const { proof, publicSignals } = await snarkjs.groth16.fullProve(inputs, "/zkp/circuit.wasm", "/zkp/circuit_final.zkey");
             setStatus('正在发送证明以供验证...');
             socket.send(JSON.stringify({ type: 'ZKP_PROVE', payload: { proof, publicSignals } }));
@@ -134,7 +150,6 @@ const VerifyDownloadPage = () => {
 
             setStatus(`安全交换第 ${completedRound + 1} 轮完成。`);
             
-            // 修复异步竞争条件：检查这是否是最后一轮
             if (completedRound + 1 === otState.current.choiceBits.length) {
                 console.log('[OT-CLIENT] 所有轮次挑战已处理，向服务器请求最终数据...');
                 if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -197,10 +212,29 @@ const VerifyDownloadPage = () => {
       }
     };
     
-    socket.onerror = () => setError('WebSocket连接错误。');
-    socket.onclose = (event) => { if (!event.wasClean) setStatus('连接已断开。'); };
+    socket.onerror = (event) => {
+        console.error("WebSocket Error:", event);
+        setError('WebSocket连接发生错误。');
+    };
+    socket.onclose = (event) => { 
+        if (!event.wasClean) {
+            console.log(`WebSocket unclean close: Code=${event.code}, Reason=${event.reason}`);
+            setStatus('连接已断开。');
+        }
+    };
 
-    return () => { if (ws.current) ws.current.close(); };
+    // ✅ **核心修复：返回一个更健壮的清理函数**
+    return () => {
+        console.log("Cleanup function called. Closing WebSocket.");
+        // 在关闭之前，移除所有事件监听器，防止它们在卸载后意外触发
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+        // 关闭连接
+        socket.close();
+        ws.current = null;
+    };
   }, [purchaseId, token, allBooks, isLoadingBooks]);
 
   return (
