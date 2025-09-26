@@ -1,24 +1,24 @@
 import { buildPoseidon } from 'circomlibjs';
-import { MerkleTree } from 'fixed-merkle-tree'; // <-- 修复了导入名称
+import { MerkleTree } from 'fixed-merkle-tree'; 
 import { randomBytes, hexlify } from 'ethers';
 
 /**
- * 将 UUID 字符串 (例如 "5f2fc0b7-f335-4331-841d-a341fe9a73ca") 
- * 转换为电路可以使用的 BigInt 字符串 (十进制)。
+ * Convert UUID string (e.g. "5f2fc0b7-f335-4331-841d-a341fe9a73ca") 
+ * to a BigInt string (decimal) that the circuit can use.
  * @param {string} uuid - The UUID string.
  * @returns {string} The BigInt as a decimal string.
  */
 export const uuidToBigIntString = (uuid) => {
-  // 1. 移除所有连字符
+  // 1. Remove all hyphens
   const hex = uuid.replace(/-/g, '');
-  // 2. 将纯十六进制字符串转换为 BigInt, 然后再转换为 (十进制) 字符串
+  // 2. Convert the pure hexadecimal string to BigInt, then convert to (decimal) string
   return BigInt('0x' + hex).toString();
 };
 
-// 确保这与您电路中的 TREE_LEVELS 匹配 (例如 8)
+// Ensure this matches TREE_LEVELS in your circuit (e.g. 8)
 const TREE_LEVELS = 8;
 
-// 1. 初始化 Poseidon 哈希器
+// 1. Initialize Poseidon hash function
 let poseidon;
 export const getPoseidon = async () => {
   if (!poseidon) {
@@ -39,9 +39,9 @@ export const poseidonHash = (inputs) => {
 };
 
 export const buildMerkleTree = async (allBooks) => {
-  await getPoseidon(); // 确保 poseidon 已初始化
+  await getPoseidon(); // Ensure poseidon is initialized
   const leaves = allBooks.map(book =>
-    poseidonHash([uuidToBigIntString(book.id), book.price_cents.toString()]) // 确保价格也是字符串
+    poseidonHash([uuidToBigIntString(book.id), book.price_cents.toString()]) // Ensure price is also a string
   );
   const tree = new MerkleTree(TREE_LEVELS, leaves, {
     hashFunction: (left, right) => poseidonHash([left, right]),
@@ -60,13 +60,13 @@ export const getMerkleProof = (tree, leafIndex) => {
 
 export const generateZkpInputs = (book, nonce, merkleProof, merkleRoot, commitment) => {
   return {
-    // 私有输入
+    // Private inputs
     book_id: uuidToBigIntString(book.id),
     nonce: nonce,
     price: book.price_cents.toString(),
     merkle_proof: merkleProof.pathElements,
     merkle_path_indices: merkleProof.pathIndices,
-    // 公开输入
+    // Public inputs
     merkle_root: merkleRoot,
     commitment: commitment,
   };

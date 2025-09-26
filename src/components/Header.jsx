@@ -2,15 +2,14 @@
 import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
-import AccountCircle from '@mui/icons-material/AccountCircle';
 import { useAuthStore } from '../store/useAuthStore';
-// 引入 useNavigate 和 useLocation hooks
+// Import useNavigate and useLocation hooks
 import { useNavigate, useLocation } from 'react-router-dom'; 
 
 const Header = () => {
   const { isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation(); // 获取当前位置信息
+  const location = useLocation(); // Get current location information
 
   const handleSignIn = () => {
     navigate('/login');
@@ -26,8 +25,8 @@ const Header = () => {
     navigate('/'); 
   };
 
-  // 决定是否显示登录按钮
-  // 当用户未登录，并且当前路径不是/login或/signup时，才显示
+  // Decide whether to show the login button
+  // Only show when the user is not logged in and the current path is not /login or /signup
   const showSignInButton = !isAuthenticated && 
                            location.pathname !== '/login' && 
                            location.pathname !== '/signup';
@@ -37,19 +36,19 @@ const Header = () => {
       <Toolbar>
         <LibraryBooksIcon sx={{ mr: 1.5 }} />
         <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }} onClick={goToIndex}>
-          Z-Library Clone
+          Privacy-Preserving Online Ebook Sale Platform
         </Typography>
 
         {isAuthenticated ? (
-          // 已登录视图
+          // Logged in view
           <Box>
             <Button color="inherit" onClick={handleLogout}>
               Logout
             </Button>
           </Box>
         ) : (
-          // 未登录视图
-          // 使用我们上面定义的条件来决定是否渲染按钮
+          // Not logged in view
+          // Use the conditions we defined above to decide whether to render the button
           showSignInButton && (
             <Box>
               <Button color="inherit" onClick={handleSignIn}>

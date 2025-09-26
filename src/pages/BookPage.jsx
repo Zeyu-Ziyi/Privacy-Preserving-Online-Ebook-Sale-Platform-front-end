@@ -1,24 +1,39 @@
+// src/pages/BookPage.jsx
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getBookById, getAllBooks } from '../api/booksApi';
-import { createOrder } from '../api/apiService'; // <-- 关键修改：从新的API文件导入
+import { createOrder } from '../api/apiService';
 import { useAuthStore } from '../store/useAuthStore';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
-
-// 导入所有需要的 ZKP 辅助函数
+import { 
+  Elements, 
+  useStripe, 
+  useElements, 
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement
+} from '@stripe/react-stripe-js';
 import { 
   getPoseidon, 
   generateNonce, 
   poseidonHash, 
   uuidToBigIntString
 } from '../lib/zkpUtils';
+import { 
+  Container, 
+  Grid, 
+  Typography, 
+  Button, 
+  Box, 
+  CircularProgress, 
+  Divider,
+  Alert 
+} from '@mui/material';
 
-// Stripe 公钥 (请确保这与您 Stripe 账户中的密钥匹配)
-const stripePromise = loadStripe('pk_test_51Q6XWQKD7xEKEswAieTpHB683siSWLdEycgHyZgKqVqHC7RYHUOmf39w1s0OqwHGOQS36GsytMGrllo1rDbZzRi500UorAz8ZZ');
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
-// 内部支付表单组件
+// --- Internal payment form component  ---
 const CheckoutForm = ({ book, commitment, nonce }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -29,6 +44,7 @@ const CheckoutForm = ({ book, commitment, nonce }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
+    setError(null);
 
     if (!stripe || !elements) {
       setLoading(false);
@@ -36,15 +52,12 @@ const CheckoutForm = ({ book, commitment, nonce }) => {
     }
 
     try {
-      // 1. --- 关键修改: 现在使用专用的 createOrder 函数 ---
       const response = await createOrder(commitment, book.price_cents);
-
       const { orderId, clientSecret } = response.data;
 
-      // 2. 使用 Stripe.js 确认支付
       const paymentResult = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card: elements.getElement(CardElement),
+          card: elements.getElement(CardNumberElement),
         },
       });
 
@@ -53,47 +66,101 @@ const CheckoutForm = ({ book, commitment, nonce }) => {
         setLoading(false);
       } else {
         if (paymentResult.paymentIntent.status === 'succeeded') {
-          // 3. 支付成功！将私有秘密保存到 localStorage
           const secrets = { bookId: book.id, nonce: nonce, price: book.price_cents };
           localStorage.setItem(`purchaseSecrets_${orderId}`, JSON.stringify(secrets));
-
-          // 4. 导航到 ZKP 验证页面
           navigate(`/verify/${orderId}`);
         }
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to create order. Please try again.');
+      setError('Create order failed, please try again.');
       setLoading(false);
     }
+  };
+  
+  const CARD_ELEMENT_OPTIONS = {
+    style: {
+      base: {
+        color: "#32325d",
+        fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+        fontSmoothing: "antialiased",
+        fontSize: "16px",
+        "::placeholder": {
+          color: "#aab7c4",
+        },
+      },
+      invalid: {
+        color: "#fa755a",
+        iconColor: "#fa755a",
+      },
+    },
+  };
+
+  const inputWrapperStyle = {
+    p: '12px 16px',
+    border: '1px solid #ddd', 
+    borderRadius: '4px',
+    backgroundColor: '#fff',
+    width: '100px',
+  };
+
+  const inputNumberStyle = {
+    p: '12px 16px',
+    border: '1px solid #ddd', 
+    borderRadius: '4px',
+    backgroundColor: '#fff',
+    width: '250px',
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <label>
-        Card details
-        <CardElement options={{
-          style: {
-            base: {
-              fontSize: '16px',
-              color: '#424770',
-              '::placeholder': { color: '#aab7c4' },
-            },
-            invalid: { color: '#9e2146' },
-          },
-          hidePostalCode: true
-        }} />
-      </label>
-      <button type="submit" disabled={!stripe || loading}>
-        {loading ? 'Processing...' : `Pay $${(book.price_cents / 100).toFixed(2)}`}
-      </button>
-      {error && <div>{error}</div>}
+      <Typography variant="h6" gutterBottom>
+        Credit card information
+      </Typography>
+      
+      <Grid container spacing={2}>
+        {/* Card number input box */}
+        <Grid item xs={12}>
+          <Typography variant="caption" display="block" sx={{ mb: 0.5 }}>Card number</Typography>
+          <Box sx={inputNumberStyle}>
+            <CardNumberElement options={CARD_ELEMENT_OPTIONS} />
+          </Box>
+        </Grid>
+        {/* Expiration date input box */}
+
+        <Grid item xs={12}>
+          <Typography variant="caption" display="block" sx={{ mb: 0.5 }}>Expiration date (MM/YY)</Typography>
+          <Box sx={inputWrapperStyle}>
+            <CardExpiryElement options={CARD_ELEMENT_OPTIONS} />
+          </Box>
+        </Grid>
+        {/* CVC input box */}
+        <Grid item xs={12}>
+          <Typography variant="caption" display="block" sx={{ mb: 0.5 }}>CVC</Typography>
+          <Box sx={inputWrapperStyle}>
+            <CardCvcElement options={CARD_ELEMENT_OPTIONS} />
+          </Box>
+        </Grid>
+      </Grid>
+      
+      {error && <Alert severity="error" sx={{ my: 2 }}>{error}</Alert>}
+
+      <Button 
+        type="submit" 
+        disabled={!stripe || loading}
+        fullWidth 
+        variant="contained" 
+        size="large"
+        sx={{ mt: 3 }} 
+      >
+        {loading ? <CircularProgress size={24} /> : `Confirm payment $${(book.price_cents / 100).toFixed(2)}`}
+      </Button>
     </form>
   );
 };
 
 
-// 您的主 BookPage 组件
+// --- Main BookPage component ---
 const BookPage = () => {
   const { id } = useParams();
   
@@ -109,58 +176,88 @@ const BookPage = () => {
 
   const [showPayment, setShowPayment] = useState(false);
   const [purchaseData, setPurchaseData] = useState(null);
-  const { token } = useAuthStore();
+  const [isPreparing, setIsPreparing] = useState(false);
+  const { isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
 
   const handlePreparePurchase = async () => {
-    if (!token) {
-      alert('Please log in to purchase.');
+    if (!isAuthenticated) {
+      navigate('/login');
       return;
     }
     if (!allBooksData || !book) return;
-
-    // 1. 初始化 Poseidon
+    
+    setIsPreparing(true);
     await getPoseidon();
-
-    // 2. 生成私有秘密 nonce
     const nonce = generateNonce();
-
-    // 3. --- 关键修改: 计算新的三输入承诺 ---
     const commitment = poseidonHash([
       uuidToBigIntString(book.id), 
       nonce, 
       book.price_cents.toString()
     ]);
-
+    
     setPurchaseData({ commitment, nonce });
     setShowPayment(true);
+    setIsPreparing(false);
   };
 
-  if (isLoadingBook || isLoadingAllBooks) return <div>Loading...</div>;
+  if (isLoadingBook || isLoadingAllBooks) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!book) {
+    return <Typography variant="h5" align="center" sx={{ mt: 4 }}>Book not found.</Typography>;
+  }
 
   return (
-    <div>
-      {book ? (
-        <>
-          <h1>{book.title}</h1>
-          <p>{book.author}</p>
-          <p>{book.description}</p>
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Grid container spacing={4}>
+        <Grid item xs={12}>
+          <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+            {book.title}
+          </Typography>
+          <Typography variant="h6" component="p" color="text.secondary" gutterBottom>
+            Author: {book.author}
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="body1" paragraph sx={{ lineHeight: 1.7 }}>
+            {book.description}
+          </Typography>
           
-          {!showPayment ? (
-            <button onClick={handlePreparePurchase}>Purchase Now</button>
-          ) : (
-            <Elements stripe={stripePromise}>
-              <CheckoutForm 
-                book={book} 
-                commitment={purchaseData.commitment} 
-                nonce={purchaseData.nonce} 
-              />
-            </Elements>
-          )}
-        </>
-      ) : (
-        <p>Book not found.</p>
-      )}
-    </div>
+            <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>
+              ${(book.price_cents / 100).toFixed(2)}
+            </Typography>
+
+            {!showPayment ? (
+              <Button 
+                variant="contained" 
+                color="primary" 
+                size="large" 
+                fullWidth 
+                onClick={handlePreparePurchase}
+                disabled={isPreparing}
+                sx={{ maxWidth: '400px' }}
+              >
+                {isPreparing ? <CircularProgress size={24} /> : 'Buy now'}
+              </Button>
+            ) : (
+              <Elements stripe={stripePromise}>
+                <CheckoutForm 
+                  book={book} 
+                  commitment={purchaseData.commitment} 
+                  nonce={purchaseData.nonce} 
+                />
+              </Elements>
+            )}
+
+
+        </Grid>
+      </Grid>
+    </Container>
   );
 };
 

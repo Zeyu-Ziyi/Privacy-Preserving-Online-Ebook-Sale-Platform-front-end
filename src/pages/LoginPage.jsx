@@ -3,32 +3,32 @@ import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Container, Box, TextField, Button, Typography, Link, Alert } from '@mui/material';
-import { apiLogin } from '../api/apiService'; // 导入真实 API
-import { jwtDecode } from 'jwt-decode'; // 导入解码器
+import { apiLogin } from '../api/apiService'; 
+import { jwtDecode } from 'jwt-decode'; // Import decoder
 
 const LoginPage = () => {
   const { login } = useAuthStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(''); // 用于显示登录失败
+  const [error, setError] = useState(''); // For displaying login failure
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); // 重置错误
+    setError(''); // Reset error
     try {
-      // 1. 调用真实 API
+      // 1. Call the API
       const response = await apiLogin(email, password);
       const { token } = response.data;
       
-      // 2. 解码 Token 以获取用户信息 (sub = userId, email)
+      // 2. Decode Token to get user information (sub = userId, email)
       const decoded = jwtDecode(token);
       const userData = { id: decoded.sub, email: decoded.email };
 
-      // 3. 使用真实数据更新 Zustand Store
+      // 3. Use  data to update Zustand Store
       login(userData, token);
 
-      // 4. 导航到首页
+      // 4. Navigate to homepage
       navigate('/');
     } catch (err) {
       console.error('Login failed:', err);
@@ -51,7 +51,6 @@ const LoginPage = () => {
         </Typography>
         {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error}</Alert>}
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-          {/* ... (TextFields 保持不变) ... */}
           <TextField
             margin="normal"
             required
