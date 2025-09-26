@@ -37,7 +37,7 @@ Before you begin, ensure you have Node.js and npm installed.
 
 1.  **Clone the Repository**
     ```bash
-    git clone [YOUR_REPOSITORY_URL]
+    git clone [https://github.com/Zeyu-Ziyi/Privacy-Preserving-Online-Ebook-Sale-Platform-front-end]
     cd [YOUR_PROJECT_DIRECTORY]
     ```
 
@@ -48,7 +48,7 @@ Before you begin, ensure you have Node.js and npm installed.
 
 3.  **Configure Environment Variables**
 
-    You need to create a `.env` file to store sensitive information like your Stripe public key.
+    You need to create a `.env` file to store sensitive information like Stripe public key.
     ```
     VITE_STRIPE_PUBLIC_KEY=pk_test_...
     ```
