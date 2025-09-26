@@ -6,19 +6,19 @@ import { useSearchStore } from '../store/useSearchStore';
 import { useNavigate, createSearchParams } from 'react-router-dom';
 
 const SearchBar = () => {
-  // 从Zustand获取全局状态和actions
-  // 我们仍然需要searchType和setQuery
+  // Get global state and actions from Zustand
+  // We still need searchType and setQuery
   const { searchType, setSearchType, setQuery: setGlobalQuery, query: globalQuery } = useSearchStore();
   const navigate = useNavigate();
 
-  // 1. 使用本地state来管理输入框的当前值
-  //    用全局的query来作为初始值，这样刷新页面或返回时能保留上次的搜索词
+  // 1. Use local state to manage the current value of the input box
+  //    Use the global query as the initial value, so that the last search word can be retained when refreshing the page or returning
   const [localQuery, setLocalQuery] = useState(globalQuery);
 
   const handleSearch = (e) => {
     e.preventDefault();
     
-    // 3. 在提交时，用本地的localQuery来更新全局状态并导航
+    // 3. When submitting, use the local localQuery to update the global state and navigate
     setGlobalQuery(localQuery); 
 
     navigate({
@@ -42,12 +42,12 @@ const SearchBar = () => {
           </Select>
         </FormControl>
 
-        {/* 2. InputBase现在由localQuery控制 */}
+        {/* 2. InputBase is now controlled by localQuery */}
         <InputBase
           sx={{ ml: 1, flex: 1 }}
           placeholder="Search for books by title or author..."
           value={localQuery}
-          onChange={(e) => setLocalQuery(e.target.value)} // 只更新本地state
+          onChange={(e) => setLocalQuery(e.target.value)} // Only update the local state
         />
         
         <IconButton type="submit" sx={{ p: '10px' }} aria-label="search">

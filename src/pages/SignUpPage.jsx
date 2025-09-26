@@ -3,42 +3,41 @@ import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Container, Box, TextField, Button, Typography, Link, Alert } from '@mui/material';
-import { apiRegister, apiLogin } from '../api/apiService'; // 导入真实 API
-import { jwtDecode } from 'jwt-decode'; // 导入解码器
+import { apiRegister, apiLogin } from '../api/apiService'; 
+import { jwtDecode } from 'jwt-decode'; 
 
 const SignUpPage = () => {
-  const { login } = useAuthStore(); // 注册后直接登录 (来自我们更新后的 store)
+  const { login } = useAuthStore(); 
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(''); // 用于显示错误
-  // 移除了 name 状态，因为后端不需要
+  const [error, setError] = useState(''); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); // 重置错误
+    setError(''); // Reset error
 
     try {
-      // 步骤 1: 调用注册 API
+      // 1. Call the register API
       await apiRegister(email, password);
 
-      // 步骤 2: 注册成功后，立即调用登录 API 以获取 Token
+      // 2. Call the login API to get Token after successful registration
       const loginResponse = await apiLogin(email, password);
       const { token } = loginResponse.data;
 
-      // 步骤 3: 解码 Token 并更新全局状态
+      // 3. Decode Token and update global state
       const decoded = jwtDecode(token);
       const userData = { id: decoded.sub, email: decoded.email };
       
       login(userData, token); 
       
-      // 步骤 4: 跳转到首页
+      // 4. Navigate to homepage
       navigate('/');
 
     } catch (err) {
       console.error('Registration or Login failed:', err);
-      // 从后端获取错误消息 (例如 "此邮箱已存在")
-      setError(err.response?.data?.error || '注册失败，请重试。');
+      // Get error message from backend 
+      setError(err.response?.data?.error || 'Registration failed, please try again.');
     }
   };
 
@@ -57,7 +56,6 @@ const SignUpPage = () => {
         </Typography>
         {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error}</Alert>}
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 3 }}>
-          {/* 移除了 "Full Name" 字段 */}
           <TextField
             margin="normal"
             required
@@ -75,7 +73,7 @@ const SignUpPage = () => {
             required
             fullWidth
             name="password"
-            label="Password (min. 8 characters)" // 提示用户密码长度要求
+            label="Password (min. 8 characters)" 
             type="password"
             id="password"
             value={password}

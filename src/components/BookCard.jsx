@@ -1,50 +1,49 @@
 // src/components/BookCard.jsx
 import React from 'react';
-import { Card, CardMedia, CardContent, Typography } from '@mui/material';
-import { Link } from 'react-router-dom'; // 引入Link组件
+import { Paper, Typography, Box, Grid } from '@mui/material';
+import { Link } from 'react-router-dom';
 
 const BookCard = ({ book }) => {
   return (
-    // 使用Link组件包裹整个卡片，实现点击跳转
-    <Link to={`/book/${book.id}`} style={{ textDecoration: 'none' }}>
-      <Card sx={{
-          width: 180,
-          height: 350, // 增加高度以容纳价格
-          m: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out', // 添加过渡效果
+    // Use Link component to make the entire card clickable and fill the container width
+    <Link to={`/book/${book.id}`} style={{ textDecoration: 'none', width: '100%' }}>
+      <Paper
+        sx={{
+          p: 2,
+          mb: 2, // Keep the spacing with the next card
+          flexGrow: 1,
+          width: '100%',
+          transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
           '&:hover': {
-            transform: 'scale(1.05)', // 悬浮时放大
-            boxShadow: 6, // 悬浮时显示更深的阴影
+            transform: 'scale(1.02)', // Slightly enlarge when hovering
+            boxShadow: 4, // Add shadow when hovering
           },
         }}
+        elevation={2}
       >
-        <CardMedia
-          component="img"
-          sx={{ height: 220, objectFit: 'cover' }}
-          image={book.cover}
-          alt={book.title}
-        />
-        <CardContent sx={{ flexGrow: 1, overflow: 'hidden', p: 1.5, display: 'flex', flexDirection: 'column' }}>
-          <Typography
-              gutterBottom
-              variant="subtitle2"
-              component="div"
-              title={book.title}
-              sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-          >
-            {book.title}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" noWrap>
-            {book.author}
-          </Typography>
-          {/* 新增: 显示价格 */}
-          <Typography variant="h6" color="primary" sx={{ mt: 'auto', fontWeight: 'bold' }}>
-            ${book.price.toFixed(2)}
-          </Typography>
-        </CardContent>
-      </Card>
+        <Grid container spacing={2} alignItems="center">
+          {/* Book title */}
+          <Grid item xs={12} sm={6}>
+            <Typography variant="h6" component="h2" title={book.title} noWrap>
+              {book.title}
+            </Typography>
+          </Grid>
+          {/* Book author */}
+          <Grid item xs={12} sm={3}>
+            <Typography variant="body1" color="text.secondary">
+              by {book.author}
+            </Typography>
+          </Grid>
+          {/* Book price */}
+          <Grid item xs={12} sm={3}>
+            <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+              <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
+                ${book.price.toFixed(2)}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
     </Link>
   );
 };

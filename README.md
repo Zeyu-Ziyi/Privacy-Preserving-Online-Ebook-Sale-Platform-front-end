@@ -1,92 +1,77 @@
-# Privacy-Preserving Online Ebook Sale Platform Front-end
+# Privacy-Preserving Online Ebook Sale Platform (Frontend)
 
-A React-based frontend for an online ebook sale platform with privacy-preserving features.
+This is a feature-rich frontend application that simulates a modern online bookstore. The project not only provides a seamless user experience—including user authentication, book browsing, searching, and payments—but also implements cutting-edge privacy-preserving technologies to ensure user anonymity and security throughout the purchasing and downloading process.
 
-## Features
+## ✨ Core Features
 
-### Search and Pagination
-- **Empty Search Support**: When search query is empty, the system returns all available books
-- **Pagination**: Books are loaded in batches of 5 to prevent overwhelming results
-- **Infinite Scroll**: As users scroll down, more books are automatically loaded in real-time
-- **Search Types**: Support for searching by title or author
-- **Manual Search**: Search results are only returned when users click the search button (not real-time)
+* **User Authentication**: Complete registration and login flows with session management handled by JSON Web Tokens (JWT).
+* **Book Browsing & Searching**:
+    * An **infinite scroll** implementation on the homepage to display all available books.
+    * A powerful **fuzzy-search** feature allowing users to search by title or author, with results also supporting infinite scroll.
+* **Secure Payment Flow**: Integration with the Stripe payment gateway for a secure and smooth credit card payment experience.
+* **Privacy-Preserving Downloads (Core Technology)**:
+    * **Zero-Knowledge Proofs (ZKP)**: After a purchase, the client generates a zero-knowledge proof (based on `snarkjs` and `circomlibjs`) to prove to the server that it has the right to download a book **without revealing which specific book was purchased**. This protects the user's purchasing privacy.
+    * **Oblivious Transfer (OT)**: Once the ZKP is verified, the client and server engage in an Oblivious Transfer protocol to securely exchange cryptographic keys. This allows the client to obtain the decryption key for the specific book they bought, while the server **never learns which key the client requested**, further protecting user privacy.
+* **Responsive & Modern UI**:
+    * Built with the **Material-UI (MUI)** component library for a beautiful and responsive interface that works well across all devices.
+    * All pages and components are thoughtfully designed to provide a fluid, Amazon-like shopping experience.
 
-### User Interface
-- Modern Material-UI based interface
-- Responsive design for different screen sizes
-- Loading states and error handling
-- Book cards with cover images and details
-- Individual book detail pages
+## 🛠️ Tech Stack
 
-### Authentication
-- User login and signup functionality
-- Purchase tracking
-- Shopping cart features
+* **Framework**: React
+* **UI Library**: Material-UI (MUI)
+* **State Management**: Zustand
+* **Routing**: React Router
+* **Data Fetching & Caching**: TanStack Query (React Query)
+* **Payment Integration**: Stripe.js
+* **Core Cryptography Libraries**:
+    * `snarkjs`: For generating and verifying Groth16 ZK-SNARKs.
+    * `circomlibjs`: Provides cryptographic primitives like the Poseidon hash for ZKP circuits.
+    * `@noble/curves`: Used for the Elliptic Curve Cryptography operations in the Oblivious Transfer protocol.
+* **Real-time Communication**: WebSocket
+* **Build Tool**: Vite
 
-## Getting Started
+## 🚀 Installation & Setup
 
-1. Install dependencies:
-```bash
-npm install
-```
+Before you begin, ensure you have Node.js and npm installed.
 
-2. Start the development server:
-```bash
-npm run dev
-```
+1.  **Clone the Repository**
+    ```bash
+    git clone [YOUR_REPOSITORY_URL]
+    cd [YOUR_PROJECT_DIRECTORY]
+    ```
 
-3. Open your browser and navigate to the local development URL (usually http://localhost:5173)
+2.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
 
-## Search Functionality
+3.  **Configure Environment Variables**
 
-### How to Use Search
-1. **Empty Search**: Leave the search box empty and click "Show All Books" to view all available books
-2. **Title Search**: Select "Title" from the dropdown and enter a book title
-3. **Author Search**: Select "Author" from the dropdown and enter an author name
-4. **Manual Search**: Click the search button or press Enter to perform the search
+    You need to create a `.env` file to store sensitive information like your Stripe public key.
+    ```
+    VITE_STRIPE_PUBLIC_KEY=pk_test_...
+    ```
 
-### Pagination Behavior
-- Initial load shows 5 books
-- Scroll down to automatically load the next 5 books
-- Loading indicator appears while fetching more books
-- "End of results" message appears when all books are loaded
+4.  **Run the Project**
+    ```bash
+    npm run dev
+    ```
+    The project should now be running on `http://localhost:5173` (or another port specified by Vite).
 
-## Project Structure
+## 🧪 Running Automated Tests
 
-```
-src/
-├── api/
-│   └── booksApi.js          # API functions for book data
-├── components/
-│   ├── BookCard.jsx         # Individual book card component
-│   ├── Header.jsx           # Navigation header
-│   ├── SearchBar.jsx        # Search interface
-│   └── SearchResultItem.jsx # Search result item component
-├── layouts/
-│   └── MainLayout.jsx       # Main layout wrapper
-├── pages/
-│   ├── BookPage.jsx         # Individual book detail page
-│   ├── HomePage.jsx         # Home page with search
-│   ├── LoginPage.jsx        # User login page
-│   ├── SearchResultsPage.jsx # Search results with infinite scroll
-│   └── SignUpPage.jsx       # User registration page
-└── store/
-    ├── useAuthStore.js      # Authentication state management
-    └── useSearchStore.js    # Search state management
-```
+This project is configured with **Vitest** and **React Testing Library** for automated testing, ensuring the stability of core cryptographic logic and UI components.
 
-## Technologies Used
+* **Run All Tests**:
+    ```bash
+    npm test
+    ```
 
-- React 19
-- Vite
-- Material-UI (MUI)
-- TanStack Query (React Query)
-- React Router DOM
-- Zustand (State Management)
-- React Intersection Observer (Infinite Scroll)
+* **Generate a Coverage Report**:
+    ```bash
+    npm run coverage
+    ```
+    Test files are located in the `src/lib` and `src/components` directories, ending with `.test.js` or `.test.jsx`.
 
-## Development
-
-- **Linting**: `npm run lint`
-- **Build**: `npm run build`
-- **Preview**: `npm run preview`
+## 📁 Project Structure Overview
